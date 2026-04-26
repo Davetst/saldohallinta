@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saldohallinta</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --border: #e1e5ea;
+    --text: #1f2933;
+    --text-muted: #5b6b7a;
+    --primary: #1e4d8c;
+    --primary-hover: #163a6b;
+    --success: #2f7d4f;
+    --danger: #b22d2d;
+    --warning: #a86b00;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  header {
+    background: var(--primary);
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+  }
+  .user-info button {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .user-info button:hover { background: rgba(255,255,255,0.25); }
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+  .section-header {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text);
+  }
+  .section-body { padding: 18px; }
+
+  .balances-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .balance-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    background: #fafbfc;
+  }
+  .balance-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .balance-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .balance-row:last-child { border-bottom: none; }
+  .balance-row .label { color: var(--text); }
+  .balance-row .value {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .balance-row .unit {
+    color: var(--text-muted);
+    font-weight: 400;
+    font-size: 13px;
+    margin-left: 4px;
+  }
+
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .tab {
+    padding: 12px 18px;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    font-family: inherit;
+  }
+  .tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+  }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-field label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+  .form-field select,
+  .form-field input {
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .form-field select:focus,
+  .form-field input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(30, 77, 140, 0.15);
+  }
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  button.primary {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.primary:hover { background: var(--primary-hover); }
+  button.primary:disabled {
+    background: #9ba8b6;
+    cursor: not-allowed;
+  }
+  .feedback {
+    font-size: 13px;
+    padding: 4px 0;
+  }
+  .feedback.success { color: var(--success); }
+  .feedback.error { color: var(--danger); }
+
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .history-table th {
+    text-align: left;
+    padding: 10px 12px;
+    background: #f0f3f6;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+  .history-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .history-table tr:last-child td { border-bottom: none; }
+  .history-table tr:hover td { background: #fafbfc; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .badge-receive { background: #e0f1e6; color: var(--success); }
+  .badge-send { background: #fbe5e5; color: var(--danger); }
+  .badge-transfer { background: #e4eaf3; color: var(--primary); }
+  .badge-inventory { background: #f7ecd4; color: var(--warning); }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  .modal {
+    background: #fff;
+    border-radius: 6px;
+    padding: 24px;
+    max-width: 380px;
+    width: 100%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  .modal h2 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+  }
+  .modal p {
+    margin: 0 0 16px 0;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .modal input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 14px;
+    margin-bottom: 14px;
+    font-family: inherit;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border);
+    background: #fafbfc;
+  }
+  .toolbar select, .toolbar input {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 13px;
+    background: #fff;
+    font-family: inherit;
+  }
+  .toolbar button {
+    padding: 6px 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .toolbar button:hover { background: #f0f3f6; }
+  .toolbar .spacer { flex: 1; }
+
+  .delta-positive { color: var(--success); font-weight: 600; }
+  .delta-negative { color: var(--danger); font-weight: 600; }
+
+  .scope-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .product-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+  .product-table th {
+    text-align: left;
+    padding: 9px 10px;
+    background: #f0f3f6;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+  .product-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .product-table tr:last-child td { border-bottom: none; }
+  .product-table .col-name { font-weight: 500; }
+  .product-table .col-unit { color: var(--text-muted); font-size: 13px; width: 70px; }
+  .product-table .col-current {
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+    width: 90px;
+    text-align: right;
+  }
+  .product-table .col-input { width: 140px; }
+  .product-table input {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .product-table input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(30, 77, 140, 0.15);
+  }
+  .product-table input.changed {
+    background: #fff8e6;
+    border-color: #d4a942;
+  }
+  @media (max-width: 540px) {
+    .product-table .col-current { width: 60px; font-size: 12px; }
+    .product-table .col-unit { width: 54px; font-size: 12px; }
+    .product-table .col-input { width: 90px; }
+    .product-table th, .product-table td { padding: 7px 6px; font-size: 13px; }
+  }
+
+  @media (max-width: 720px) {
+    main { padding: 12px; }
+    .balances-grid { grid-template-columns: 1fr; gap: 12px; }
+    .section-body { padding: 14px; }
+    header h1 { font-size: 16px; }
+    .history-table { font-size: 12px; }
+    .history-table th, .history-table td { padding: 8px 6px; }
+    .history-table th.hide-mobile, .history-table td.hide-mobile { display: none; }
+    .tab { padding: 10px 12px; flex: 1; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Saldohallinta</h1>
+  <div class="user-info">
+    <span>Käyttäjä: <strong id="userDisplay">—</strong></span>
+    <button id="changeUserBtn">Vaihda</button>
+  </div>
+</header>
+
+<main>
+
+  <section class="section">
+    <div class="section-header">Saldot</div>
+    <div class="section-body">
+      <div class="balances-grid" id="balancesGrid"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">Toiminnot</div>
+    <div class="tabs" id="actionTabs">
+      <button class="tab active" data-action="vastaanotto">Vastaanotto</button>
+      <button class="tab" data-action="lahetys">Lähetys</button>
+      <button class="tab" data-action="siirto">Siirto</button>
+      <button class="tab" data-action="inventointi">Inventointi</button>
+    </div>
+    <div class="section-body">
+      <div id="formContainer"></div>
+      <div id="formFeedback" class="feedback"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">Tapahtumahistoria</div>
+    <div class="toolbar">
+      <select id="filterType">
+        <option value="">Kaikki tyypit</option>
+        <option value="vastaanotto">Vastaanotto</option>
+        <option value="lahetys">Lähetys</option>
+        <option value="siirto">Siirto</option>
+        <option value="inventointi">Inventointi</option>
+      </select>
+      <select id="filterLocation">
+        <option value="">Kaikki sijainnit</option>
+        <option value="tontti">Tontti</option>
+        <option value="kausivarasto">Kausivarasto</option>
+      </select>
+      <select id="filterProduct">
+        <option value="">Kaikki tuotteet</option>
+      </select>
+      <div class="spacer"></div>
+      <button id="exportBtn">Vie CSV</button>
+    </div>
+    <div id="historyContainer"></div>
+  </section>
+
+</main>
+
+<div id="userModal" class="modal-backdrop" style="display:none;">
+  <div class="modal">
+    <h2>Tervetuloa</h2>
+    <p>Anna nimesi tapahtumakirjausta varten.</p>
+    <input type="text" id="userInput" placeholder="Nimi" maxlength="40" autocomplete="off">
+    <button class="primary" id="userSubmitBtn" style="width:100%;">Jatka</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const PRODUCTS = [
+  { id: "alustavaunut",  name: "Alustavaunut",  unit: "kpl"   },
+  { id: "rullakot",      name: "Rullakot",      unit: "kpl"   },
+  { id: "tukkurullakot", name: "Tukkurullakot", unit: "kpl"   },
+  { id: "laatikot",      name: "Laatikot",      unit: "lavaa" },
+  { id: "tarjottimet",   name: "Tarjottimet",   unit: "lavaa" },
+  { id: "kennot",        name: "Kennot",        unit: "lavaa" },
+];
+
+const LOCATIONS = [
+  { id: "tontti",       name: "Tontti"       },
+  { id: "kausivarasto", name: "Kausivarasto" },
+];
+
+const STORAGE_KEY = "saldohallinta_v1";
+const USER_KEY = "saldohallinta_user";
+
+function emptyBalances() {
+  const out = {};
+  for (const loc of LOCATIONS) {
+    out[loc.id] = {};
+    for (const p of PRODUCTS) out[loc.id][p.id] = 0;
+  }
+  return out;
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { balances: emptyBalances(), transactions: [] };
+    const parsed = JSON.parse(raw);
+    const balances = emptyBalances();
+    if (parsed.balances) {
+      for (const loc of LOCATIONS) {
+        for (const p of PRODUCTS) {
+          const v = parsed.balances?.[loc.id]?.[p.id];
+          if (typeof v === "number") balances[loc.id][p.id] = v;
+        }
+      }
+    }
+    const transactions = Array.isArray(parsed.transactions) ? parsed.transactions : [];
+    return { balances, transactions };
+  } catch (e) {
+    return { balances: emptyBalances(), transactions: [] };
+  }
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function getProduct(id) { return PRODUCTS.find(p => p.id === id); }
+function getLocation(id) { return LOCATIONS.find(l => l.id === id); }
+
+let state = loadState();
+let currentUser = localStorage.getItem(USER_KEY) || "";
+let activeAction = "vastaanotto";
+
+function ensureUser() {
+  if (currentUser && currentUser.trim()) {
+    document.getElementById("userDisplay").textContent = currentUser;
+    document.getElementById("userModal").style.display = "none";
+    return true;
+  }
+  document.getElementById("userModal").style.display = "flex";
+  document.getElementById("userInput").focus();
+  return false;
+}
+
+document.getElementById("userSubmitBtn").addEventListener("click", () => {
+  const v = document.getElementById("userInput").value.trim();
+  if (!v) return;
+  currentUser = v;
+  localStorage.setItem(USER_KEY, currentUser);
+  ensureUser();
+});
+document.getElementById("userInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("userSubmitBtn").click();
+});
+document.getElementById("changeUserBtn").addEventListener("click", () => {
+  document.getElementById("userInput").value = currentUser;
+  document.getElementById("userModal").style.display = "flex";
+  document.getElementById("userInput").focus();
+  document.getElementById("userInput").select();
+});
+
+function renderBalances() {
+  const grid = document.getElementById("balancesGrid");
+  grid.innerHTML = "";
+  for (const loc of LOCATIONS) {
+    const card = document.createElement("div");
+    card.className = "balance-card";
+    let html = `<h3>${loc.name}</h3>`;
+    for (const p of PRODUCTS) {
+      const v = state.balances[loc.id][p.id];
+      html += `
+        <div class="balance-row">
+          <span class="label">${p.name}</span>
+          <span><span class="value">${v}</span><span class="unit">${p.unit}</span></span>
+        </div>`;
+    }
+    card.innerHTML = html;
+    grid.appendChild(card);
+  }
+}
+
+function buildLocationSelect(id, label) {
+  return `
+    <div class="form-field">
+      <label>${label}</label>
+      <select id="${id}">${LOCATIONS.map(l => `<option value="${l.id}">${l.name}</option>`).join("")}</select>
+    </div>`;
+}
+
+function buildProductTable(mode, primaryLoc, secondaryLoc) {
+  // mode: "qty" (vastaanotto/lähetys/siirto), "inventory"
+  const isInventory = mode === "inventory";
+  const showCurrent = mode === "qty" && (primaryLoc || secondaryLoc);
+  let html = `<table class="product-table"><thead><tr>
+    <th>Tuote</th>
+    <th>Yks.</th>`;
+  if (isInventory) {
+    html += `<th class="col-current">Nykyinen</th><th class="col-input">Uusi saldo</th>`;
+  } else {
+    if (showCurrent) html += `<th class="col-current">Saldo</th>`;
+    html += `<th class="col-input">Määrä</th>`;
+  }
+  html += `</tr></thead><tbody>`;
+  for (const p of PRODUCTS) {
+    const curPrimary = primaryLoc ? state.balances[primaryLoc][p.id] : null;
+    html += `<tr data-product="${p.id}">
+      <td class="col-name">${p.name}</td>
+      <td class="col-unit">${p.unit}</td>`;
+    if (isInventory) {
+      html += `<td class="col-current">${curPrimary}</td>
+        <td class="col-input"><input type="number" min="0" step="1" data-product="${p.id}" placeholder="${curPrimary}"></td>`;
+    } else {
+      if (showCurrent) html += `<td class="col-current">${curPrimary ?? "—"}</td>`;
+      html += `<td class="col-input"><input type="number" min="0" step="1" data-product="${p.id}" placeholder="0"></td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table>`;
+  return html;
+}
+
+function attachChangedHighlight(container, mode) {
+  const inputs = container.querySelectorAll(".product-table input");
+  inputs.forEach(inp => {
+    inp.addEventListener("input", () => {
+      const v = inp.value.trim();
+      if (mode === "inventory") {
+        const placeholderVal = inp.getAttribute("placeholder");
+        inp.classList.toggle("changed", v !== "" && v !== placeholderVal);
+      } else {
+        const n = parseInt(v, 10);
+        inp.classList.toggle("changed", Number.isFinite(n) && n > 0);
+      }
+    });
+  });
+}
+
+function renderForm() {
+  const c = document.getElementById("formContainer");
+  c.innerHTML = "";
+  document.getElementById("formFeedback").textContent = "";
+
+  if (activeAction === "vastaanotto" || activeAction === "lahetys") {
+    const isReceive = activeAction === "vastaanotto";
+    c.innerHTML = `
+      <div class="scope-row">
+        ${buildLocationSelect("f_location", "Sijainti")}
+      </div>
+      <div id="productTableWrap"></div>
+      <div class="form-actions">
+        <button class="primary" id="f_submit">${isReceive ? "Vastaanota kuorma" : "Lähetä kuorma"}</button>
+      </div>
+    `;
+    const renderTable = () => {
+      const loc = document.getElementById("f_location").value;
+      const wrap = document.getElementById("productTableWrap");
+      wrap.innerHTML = buildProductTable("qty", loc, null);
+      attachChangedHighlight(wrap, "qty");
+    };
+    document.getElementById("f_location").addEventListener("change", renderTable);
+    renderTable();
+    document.getElementById("f_submit").addEventListener("click", () => submitReceiveSend(isReceive));
+  }
+  else if (activeAction === "siirto") {
+    c.innerHTML = `
+      <div class="scope-row">
+        ${buildLocationSelect("f_from", "Mistä")}
+        ${buildLocationSelect("f_to", "Mihin")}
+      </div>
+      <div id="productTableWrap"></div>
+      <div class="form-actions">
+        <button class="primary" id="f_submit">Siirrä kuorma</button>
+      </div>
+    `;
+    document.getElementById("f_to").value = "kausivarasto";
+    const renderTable = () => {
+      const from = document.getElementById("f_from").value;
+      const wrap = document.getElementById("productTableWrap");
+      wrap.innerHTML = buildProductTable("qty", from, null);
+      attachChangedHighlight(wrap, "qty");
+    };
+    document.getElementById("f_from").addEventListener("change", () => {
+      const from = document.getElementById("f_from").value;
+      document.getElementById("f_to").value = LOCATIONS.find(l => l.id !== from).id;
+      renderTable();
+    });
+    document.getElementById("f_to").addEventListener("change", () => {
+      const to = document.getElementById("f_to").value;
+      document.getElementById("f_from").value = LOCATIONS.find(l => l.id !== to).id;
+      renderTable();
+    });
+    renderTable();
+    document.getElementById("f_submit").addEventListener("click", submitTransfer);
+  }
+  else if (activeAction === "inventointi") {
+    c.innerHTML = `
+      <div class="scope-row">
+        ${buildLocationSelect("f_location", "Sijainti")}
+      </div>
+      <div id="productTableWrap"></div>
+      <div class="form-actions">
+        <button class="primary" id="f_submit">Tallenna inventointi</button>
+      </div>
+    `;
+    const renderTable = () => {
+      const loc = document.getElementById("f_location").value;
+      const wrap = document.getElementById("productTableWrap");
+      wrap.innerHTML = buildProductTable("inventory", loc, null);
+      attachChangedHighlight(wrap, "inventory");
+    };
+    document.getElementById("f_location").addEventListener("change", renderTable);
+    renderTable();
+    document.getElementById("f_submit").addEventListener("click", submitInventory);
+  }
+}
+
+function readProductInputs() {
+  // returns array of { product, value } for non-empty inputs
+  const out = [];
+  document.querySelectorAll("#productTableWrap .product-table input").forEach(inp => {
+    const raw = inp.value.trim();
+    if (raw === "") return;
+    const n = parseInt(raw, 10);
+    out.push({ product: inp.dataset.product, value: n, raw });
+  });
+  return out;
+}
+
+function showFeedback(msg, ok) {
+  const el = document.getElementById("formFeedback");
+  el.textContent = msg;
+  el.className = "feedback " + (ok ? "success" : "error");
+  if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 4000);
+}
+
+function readQty(id) {
+  const v = parseInt(document.getElementById(id).value, 10);
+  if (!Number.isFinite(v)) return null;
+  return v;
+}
+
+function nowIso() { return new Date().toISOString(); }
+
+function pushTransaction(tx) {
+  tx.id = (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + "-" + Math.random().toString(36).slice(2,8));
+  tx.timestamp = nowIso();
+  tx.user = currentUser;
+  state.transactions.unshift(tx);
+}
+
+function submitReceiveSend(isReceive) {
+  if (!ensureUser()) return;
+  const loc = document.getElementById("f_location").value;
+  const inputs = readProductInputs();
+  if (inputs.length === 0) {
+    showFeedback("Anna määrä vähintään yhdelle tuotteelle.", false);
+    return;
+  }
+  // validate
+  for (const it of inputs) {
+    if (!Number.isFinite(it.value) || it.value <= 0) {
+      showFeedback(`${getProduct(it.product).name}: anna kokonaisluku > 0.`, false);
+      return;
+    }
+  }
+  if (!isReceive) {
+    for (const it of inputs) {
+      const cur = state.balances[loc][it.product];
+      if (cur < it.value) {
+        showFeedback(`${getProduct(it.product).name}: saldo ei riitä (${cur} ${getProduct(it.product).unit}).`, false);
+        return;
+      }
+    }
+  }
+  // apply
+  const changes = [];
+  for (const it of inputs) {
+    const before = state.balances[loc][it.product];
+    const delta = isReceive ? it.value : -it.value;
+    const after = before + delta;
+    state.balances[loc][it.product] = after;
+    changes.push({ location: loc, product: it.product, before, after, delta });
+  }
+  pushTransaction({
+    type: isReceive ? "vastaanotto" : "lahetys",
+    location: loc,
+    changes,
+  });
+  saveState();
+  renderBalances();
+  renderHistory();
+  renderForm();
+  showFeedback(`${isReceive ? "Vastaanotto" : "Lähetys"} kirjattu: ${getLocation(loc).name}, ${changes.length} tuote${changes.length === 1 ? "" : "tta"}.`, true);
+}
+
+function submitTransfer() {
+  if (!ensureUser()) return;
+  const from = document.getElementById("f_from").value;
+  const to = document.getElementById("f_to").value;
+  if (from === to) { showFeedback("Lähde- ja kohdesijainnin tulee olla eri.", false); return; }
+  const inputs = readProductInputs();
+  if (inputs.length === 0) { showFeedback("Anna määrä vähintään yhdelle tuotteelle.", false); return; }
+  for (const it of inputs) {
+    if (!Number.isFinite(it.value) || it.value <= 0) {
+      showFeedback(`${getProduct(it.product).name}: anna kokonaisluku > 0.`, false);
+      return;
+    }
+    const cur = state.balances[from][it.product];
+    if (cur < it.value) {
+      showFeedback(`${getProduct(it.product).name}: lähdesaldo ei riitä (${cur} ${getProduct(it.product).unit}).`, false);
+      return;
+    }
+  }
+  const changes = [];
+  for (const it of inputs) {
+    const fromBefore = state.balances[from][it.product];
+    const toBefore = state.balances[to][it.product];
+    state.balances[from][it.product] = fromBefore - it.value;
+    state.balances[to][it.product]   = toBefore + it.value;
+    changes.push({ location: from, product: it.product, before: fromBefore, after: fromBefore - it.value, delta: -it.value });
+    changes.push({ location: to,   product: it.product, before: toBefore,   after: toBefore + it.value,   delta:  it.value });
+  }
+  pushTransaction({
+    type: "siirto",
+    fromLocation: from,
+    toLocation: to,
+    changes,
+  });
+  saveState();
+  renderBalances();
+  renderHistory();
+  renderForm();
+  showFeedback(`Siirto kirjattu: ${getLocation(from).name} → ${getLocation(to).name}, ${inputs.length} tuote${inputs.length === 1 ? "" : "tta"}.`, true);
+}
+
+function submitInventory() {
+  if (!ensureUser()) return;
+  const loc = document.getElementById("f_location").value;
+  const inputs = readProductInputs();
+  if (inputs.length === 0) { showFeedback("Anna saldo vähintään yhdelle tuotteelle.", false); return; }
+  for (const it of inputs) {
+    if (!Number.isFinite(it.value) || it.value < 0) {
+      showFeedback(`${getProduct(it.product).name}: anna saldo (kokonaisluku ≥ 0).`, false);
+      return;
+    }
+  }
+  const changes = [];
+  for (const it of inputs) {
+    const before = state.balances[loc][it.product];
+    const delta = it.value - before;
+    if (delta === 0) continue;
+    state.balances[loc][it.product] = it.value;
+    changes.push({ location: loc, product: it.product, before, after: it.value, delta });
+  }
+  if (changes.length === 0) { showFeedback("Annetut saldot vastaavat nykyisiä — ei muutoksia.", false); return; }
+  pushTransaction({
+    type: "inventointi",
+    location: loc,
+    changes,
+  });
+  saveState();
+  renderBalances();
+  renderHistory();
+  renderForm();
+  showFeedback(`Inventointi kirjattu: ${getLocation(loc).name}, ${changes.length} tuote${changes.length === 1 ? "" : "tta"} päivitetty.`, true);
+}
+
+document.querySelectorAll("#actionTabs .tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#actionTabs .tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    activeAction = btn.dataset.action;
+    renderForm();
+  });
+});
+
+const filterProductSelect = document.getElementById("filterProduct");
+for (const p of PRODUCTS) {
+  const opt = document.createElement("option");
+  opt.value = p.id;
+  opt.textContent = p.name;
+  filterProductSelect.appendChild(opt);
+}
+
+document.getElementById("filterType").addEventListener("change", renderHistory);
+document.getElementById("filterLocation").addEventListener("change", renderHistory);
+document.getElementById("filterProduct").addEventListener("change", renderHistory);
+
+function formatDate(iso) {
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function txProductSet(tx) {
+  // unique product ids in the transaction
+  const seen = new Set();
+  for (const ch of tx.changes) seen.add(ch.product);
+  return Array.from(seen);
+}
+
+function txDescription(tx) {
+  const products = txProductSet(tx);
+  if (tx.type === "vastaanotto") {
+    const lines = products.map(pid => {
+      const p = getProduct(pid);
+      const ch = tx.changes.find(c => c.product === pid);
+      return `${p.name} +${ch.delta} ${p.unit}`;
+    });
+    return `<strong>→ ${getLocation(tx.location).name}</strong><br>${lines.join("<br>")}`;
+  }
+  if (tx.type === "lahetys") {
+    const lines = products.map(pid => {
+      const p = getProduct(pid);
+      const ch = tx.changes.find(c => c.product === pid);
+      return `${p.name} −${Math.abs(ch.delta)} ${p.unit}`;
+    });
+    return `<strong>← ${getLocation(tx.location).name}</strong><br>${lines.join("<br>")}`;
+  }
+  if (tx.type === "siirto") {
+    const lines = products.map(pid => {
+      const p = getProduct(pid);
+      const ch = tx.changes.find(c => c.product === pid && c.location === tx.toLocation);
+      return `${p.name} ${ch.delta} ${p.unit}`;
+    });
+    return `<strong>${getLocation(tx.fromLocation).name} → ${getLocation(tx.toLocation).name}</strong><br>${lines.join("<br>")}`;
+  }
+  if (tx.type === "inventointi") {
+    const lines = tx.changes.map(ch => {
+      const p = getProduct(ch.product);
+      const sign = ch.delta > 0 ? `+${ch.delta}` : `${ch.delta}`;
+      return `${p.name}: ${ch.before} → ${ch.after} ${p.unit} (${sign})`;
+    });
+    return `<strong>@ ${getLocation(tx.location).name}</strong><br>${lines.join("<br>")}`;
+  }
+  return "";
+}
+
+function txBadge(type) {
+  const map = {
+    vastaanotto: ["badge-receive",  "Vastaanotto"],
+    lahetys:     ["badge-send",     "Lähetys"   ],
+    siirto:      ["badge-transfer", "Siirto"    ],
+    inventointi: ["badge-inventory","Inventointi"],
+  };
+  const [cls, label] = map[type] || ["", type];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function txMatchesFilters(tx) {
+  const t = document.getElementById("filterType").value;
+  const l = document.getElementById("filterLocation").value;
+  const p = document.getElementById("filterProduct").value;
+  if (t && tx.type !== t) return false;
+  if (l) {
+    const locs = tx.type === "siirto" ? [tx.fromLocation, tx.toLocation] : [tx.location];
+    if (!locs.includes(l)) return false;
+  }
+  if (p && !txProductSet(tx).includes(p)) return false;
+  return true;
+}
+
+function changesCell(tx) {
+  return tx.changes.map(ch => {
+    const prod = getProduct(ch.product);
+    const unit = prod ? prod.unit : "";
+    const sign = ch.delta > 0 ? `+${ch.delta}` : `${ch.delta}`;
+    const cls = ch.delta > 0 ? "delta-positive" : "delta-negative";
+    return `<div>${getLocation(ch.location).name}: ${ch.before} → ${ch.after} ${unit} <span class="${cls}">(${sign})</span></div>`;
+  }).join("");
+}
+
+function renderHistory() {
+  const container = document.getElementById("historyContainer");
+  const filtered = state.transactions.filter(txMatchesFilters);
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state">Ei tapahtumia.</div>`;
+    return;
+  }
+  let html = `
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>Aika</th>
+          <th>Käyttäjä</th>
+          <th>Tyyppi</th>
+          <th>Tapahtuma</th>
+          <th class="hide-mobile">Saldomuutokset</th>
+        </tr>
+      </thead>
+      <tbody>`;
+  for (const tx of filtered) {
+    html += `
+      <tr>
+        <td>${formatDate(tx.timestamp)}</td>
+        <td>${escapeHtml(tx.user || "—")}</td>
+        <td>${txBadge(tx.type)}</td>
+        <td>${txDescription(tx)}</td>
+        <td class="hide-mobile">${changesCell(tx)}</td>
+      </tr>`;
+  }
+  html += "</tbody></table>";
+  container.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const filtered = state.transactions.filter(txMatchesFilters);
+  // one CSV row per change, transaction id groups them
+  const rows = [["Aika","Käyttäjä","Tapahtuma-ID","Tyyppi","Sijainti","Tuote","Yksikkö","Saldo ennen","Saldo jälkeen","Muutos"]];
+  for (const tx of filtered) {
+    for (const ch of tx.changes) {
+      const prod = getProduct(ch.product);
+      rows.push([
+        formatDate(tx.timestamp),
+        tx.user || "",
+        tx.id,
+        tx.type,
+        getLocation(ch.location).name,
+        prod ? prod.name : ch.product,
+        prod ? prod.unit : "",
+        ch.before,
+        ch.after,
+        (ch.delta > 0 ? "+" : "") + ch.delta,
+      ]);
+    }
+  }
+  const csv = rows.map(r => r.map(cell => {
+    const s = String(cell ?? "");
+    return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }).join(";")).join("\r\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `tapahtumat_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+ensureUser();
+renderBalances();
+renderForm();
+renderHistory();
+</script>
+</body>
+</html>
