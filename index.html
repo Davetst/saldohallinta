@@ -242,6 +242,9 @@
   .badge-send { background: #fbe5e5; color: var(--danger); }
   .badge-transfer { background: #e4eaf3; color: var(--primary); }
   .badge-inventory { background: #f7ecd4; color: var(--warning); }
+  .badge-undo { background: #ececec; color: #555; }
+  .row-undone td { opacity: 0.55; text-decoration: line-through; text-decoration-color: #999; }
+  .row-undone td .badge { text-decoration: none; }
 
   .empty-state {
     text-align: center;
@@ -399,10 +402,6 @@
 
 <header>
   <h1>Saldohallinta</h1>
-  <div class="user-info">
-    <span>Käyttäjä: <strong id="userDisplay">—</strong></span>
-    <button id="changeUserBtn">Vaihda</button>
-  </div>
 </header>
 
 <main>
@@ -437,6 +436,7 @@
         <option value="lahetys">Lähetys</option>
         <option value="siirto">Siirto</option>
         <option value="inventointi">Inventointi</option>
+        <option value="peruutus">Peruutus</option>
       </select>
       <select id="filterLocation">
         <option value="">Kaikki sijainnit</option>
@@ -447,6 +447,7 @@
         <option value="">Kaikki tuotteet</option>
       </select>
       <div class="spacer"></div>
+      <button id="undoBtn">Peru viimeisin</button>
       <button id="exportBtn">Vie CSV</button>
     </div>
     <div id="historyContainer"></div>
@@ -454,12 +455,21 @@
 
 </main>
 
-<div id="userModal" class="modal-backdrop" style="display:none;">
-  <div class="modal">
-    <h2>Tervetuloa</h2>
-    <p>Anna nimesi tapahtumakirjausta varten.</p>
-    <input type="text" id="userInput" placeholder="Nimi" maxlength="40" autocomplete="off">
-    <button class="primary" id="userSubmitBtn" style="width:100%;">Jatka</button>
+<div id="undoModal" class="modal-backdrop" style="display:none;">
+  <div class="modal" style="max-width: 480px;">
+    <h2>Peru viimeisin tapahtuma</h2>
+    <p id="undoSummary" style="color: var(--text); background: #f4f6f8; padding: 10px 12px; border-radius: 4px; font-size: 13px; line-height: 1.5;"></p>
+    <div class="form-field" style="margin-bottom: 14px;">
+      <label style="font-size: 13px; font-weight: 500; color: var(--text-muted); display:block; margin-bottom: 6px;">Kirjaaja</label>
+      <select id="undoUser" style="width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px; font-family: inherit; background: #fff;">
+        <option value="">— Valitse —</option>
+      </select>
+    </div>
+    <div id="undoFeedback" class="feedback" style="margin-bottom: 8px;"></div>
+    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+      <button id="undoCancelBtn" style="padding: 9px 16px; background: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 14px; cursor: pointer; font-family: inherit;">Peruuta</button>
+      <button class="primary" id="undoConfirmBtn">Vahvista peruutus</button>
+    </div>
   </div>
 </div>
 
@@ -480,8 +490,9 @@ const LOCATIONS = [
   { id: "kausivarasto", name: "Kausivarasto" },
 ];
 
+const USERS = ["Jukka", "Pasi", "Jaana", "Tomi"];
+
 const STORAGE_KEY = "saldohallinta_v1";
-const USER_KEY = "saldohallinta_user";
 
 function emptyBalances() {
   const out = {};
@@ -521,36 +532,23 @@ function getProduct(id) { return PRODUCTS.find(p => p.id === id); }
 function getLocation(id) { return LOCATIONS.find(l => l.id === id); }
 
 let state = loadState();
-let currentUser = localStorage.getItem(USER_KEY) || "";
 let activeAction = "vastaanotto";
 
-function ensureUser() {
-  if (currentUser && currentUser.trim()) {
-    document.getElementById("userDisplay").textContent = currentUser;
-    document.getElementById("userModal").style.display = "none";
-    return true;
-  }
-  document.getElementById("userModal").style.display = "flex";
-  document.getElementById("userInput").focus();
-  return false;
+function buildUserSelect() {
+  return `
+    <div class="form-field">
+      <label>Kirjaaja</label>
+      <select id="f_user" required>
+        <option value="">— Valitse —</option>
+        ${USERS.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join("")}
+      </select>
+    </div>`;
 }
 
-document.getElementById("userSubmitBtn").addEventListener("click", () => {
-  const v = document.getElementById("userInput").value.trim();
-  if (!v) return;
-  currentUser = v;
-  localStorage.setItem(USER_KEY, currentUser);
-  ensureUser();
-});
-document.getElementById("userInput").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") document.getElementById("userSubmitBtn").click();
-});
-document.getElementById("changeUserBtn").addEventListener("click", () => {
-  document.getElementById("userInput").value = currentUser;
-  document.getElementById("userModal").style.display = "flex";
-  document.getElementById("userInput").focus();
-  document.getElementById("userInput").select();
-});
+function readUser() {
+  const el = document.getElementById("f_user");
+  return el ? el.value.trim() : "";
+}
 
 function renderBalances() {
   const grid = document.getElementById("balancesGrid");
@@ -637,6 +635,7 @@ function renderForm() {
     const isReceive = activeAction === "vastaanotto";
     c.innerHTML = `
       <div class="scope-row">
+        ${buildUserSelect()}
         ${buildLocationSelect("f_location", "Sijainti")}
       </div>
       <div id="productTableWrap"></div>
@@ -657,6 +656,7 @@ function renderForm() {
   else if (activeAction === "siirto") {
     c.innerHTML = `
       <div class="scope-row">
+        ${buildUserSelect()}
         ${buildLocationSelect("f_from", "Mistä")}
         ${buildLocationSelect("f_to", "Mihin")}
       </div>
@@ -688,6 +688,7 @@ function renderForm() {
   else if (activeAction === "inventointi") {
     c.innerHTML = `
       <div class="scope-row">
+        ${buildUserSelect()}
         ${buildLocationSelect("f_location", "Sijainti")}
       </div>
       <div id="productTableWrap"></div>
@@ -734,15 +735,16 @@ function readQty(id) {
 
 function nowIso() { return new Date().toISOString(); }
 
-function pushTransaction(tx) {
+function pushTransaction(tx, user) {
   tx.id = (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + "-" + Math.random().toString(36).slice(2,8));
   tx.timestamp = nowIso();
-  tx.user = currentUser;
+  tx.user = user;
   state.transactions.unshift(tx);
 }
 
 function submitReceiveSend(isReceive) {
-  if (!ensureUser()) return;
+  const user = readUser();
+  if (!user) { showFeedback("Valitse kirjaaja.", false); return; }
   const loc = document.getElementById("f_location").value;
   const inputs = readProductInputs();
   if (inputs.length === 0) {
@@ -778,7 +780,7 @@ function submitReceiveSend(isReceive) {
     type: isReceive ? "vastaanotto" : "lahetys",
     location: loc,
     changes,
-  });
+  }, user);
   saveState();
   renderBalances();
   renderHistory();
@@ -787,7 +789,8 @@ function submitReceiveSend(isReceive) {
 }
 
 function submitTransfer() {
-  if (!ensureUser()) return;
+  const user = readUser();
+  if (!user) { showFeedback("Valitse kirjaaja.", false); return; }
   const from = document.getElementById("f_from").value;
   const to = document.getElementById("f_to").value;
   if (from === to) { showFeedback("Lähde- ja kohdesijainnin tulee olla eri.", false); return; }
@@ -818,7 +821,7 @@ function submitTransfer() {
     fromLocation: from,
     toLocation: to,
     changes,
-  });
+  }, user);
   saveState();
   renderBalances();
   renderHistory();
@@ -827,7 +830,8 @@ function submitTransfer() {
 }
 
 function submitInventory() {
-  if (!ensureUser()) return;
+  const user = readUser();
+  if (!user) { showFeedback("Valitse kirjaaja.", false); return; }
   const loc = document.getElementById("f_location").value;
   const inputs = readProductInputs();
   if (inputs.length === 0) { showFeedback("Anna saldo vähintään yhdelle tuotteelle.", false); return; }
@@ -850,7 +854,7 @@ function submitInventory() {
     type: "inventointi",
     location: loc,
     changes,
-  });
+  }, user);
   saveState();
   renderBalances();
   renderHistory();
@@ -926,6 +930,14 @@ function txDescription(tx) {
     });
     return `<strong>@ ${getLocation(tx.location).name}</strong><br>${lines.join("<br>")}`;
   }
+  if (tx.type === "peruutus") {
+    const lines = tx.changes.map(ch => {
+      const p = getProduct(ch.product);
+      const sign = ch.delta > 0 ? `+${ch.delta}` : `${ch.delta}`;
+      return `${getLocation(ch.location).name}: ${p.name} ${ch.before} → ${ch.after} ${p.unit} (${sign})`;
+    });
+    return `<strong>Peruutus</strong><br>${lines.join("<br>")}`;
+  }
   return "";
 }
 
@@ -935,6 +947,7 @@ function txBadge(type) {
     lahetys:     ["badge-send",     "Lähetys"   ],
     siirto:      ["badge-transfer", "Siirto"    ],
     inventointi: ["badge-inventory","Inventointi"],
+    peruutus:    ["badge-undo",     "Peruutus"  ],
   };
   const [cls, label] = map[type] || ["", type];
   return `<span class="badge ${cls}">${label}</span>`;
@@ -983,8 +996,9 @@ function renderHistory() {
       </thead>
       <tbody>`;
   for (const tx of filtered) {
+    const rowClass = tx.undone ? "row-undone" : "";
     html += `
-      <tr>
+      <tr class="${rowClass}">
         <td>${formatDate(tx.timestamp)}</td>
         <td>${escapeHtml(tx.user || "—")}</td>
         <td>${txBadge(tx.type)}</td>
@@ -1036,7 +1050,109 @@ document.getElementById("exportBtn").addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
-ensureUser();
+function findLastUndoableTransaction() {
+  for (const tx of state.transactions) {
+    if (tx.type === "peruutus") continue;
+    if (tx.undone) continue;
+    return tx;
+  }
+  return null;
+}
+
+function txPlainSummary(tx) {
+  return txDescription(tx).replace(/<br\s*\/?>/gi, " · ").replace(/<[^>]+>/g, "").trim();
+}
+
+const undoModal = document.getElementById("undoModal");
+const undoSummaryEl = document.getElementById("undoSummary");
+const undoUserSel = document.getElementById("undoUser");
+const undoFeedbackEl = document.getElementById("undoFeedback");
+let pendingUndoTxId = null;
+
+USERS.forEach(u => {
+  const opt = document.createElement("option");
+  opt.value = u;
+  opt.textContent = u;
+  undoUserSel.appendChild(opt);
+});
+
+document.getElementById("undoBtn").addEventListener("click", () => {
+  const tx = findLastUndoableTransaction();
+  if (!tx) {
+    alert("Ei peruutettavia tapahtumia.");
+    return;
+  }
+  pendingUndoTxId = tx.id;
+  undoSummaryEl.textContent = `${formatDate(tx.timestamp)} · ${escapeHtml(tx.user || "—")} · ${txPlainSummary(tx)}`;
+  undoUserSel.value = "";
+  undoFeedbackEl.textContent = "";
+  undoModal.style.display = "flex";
+});
+
+document.getElementById("undoCancelBtn").addEventListener("click", () => {
+  undoModal.style.display = "none";
+  pendingUndoTxId = null;
+});
+
+document.getElementById("undoConfirmBtn").addEventListener("click", () => {
+  const user = undoUserSel.value;
+  if (!user) {
+    undoFeedbackEl.className = "feedback error";
+    undoFeedbackEl.textContent = "Valitse kirjaaja.";
+    return;
+  }
+  const tx = state.transactions.find(t => t.id === pendingUndoTxId);
+  if (!tx) {
+    undoFeedbackEl.className = "feedback error";
+    undoFeedbackEl.textContent = "Tapahtumaa ei löydy.";
+    return;
+  }
+  if (tx.undone) {
+    undoFeedbackEl.className = "feedback error";
+    undoFeedbackEl.textContent = "Tapahtuma on jo peruutettu.";
+    return;
+  }
+  // build reverse changes
+  const reverse = tx.changes.map(ch => {
+    const before = state.balances[ch.location][ch.product];
+    return {
+      location: ch.location,
+      product: ch.product,
+      before,
+      after: before - ch.delta,
+      delta: -ch.delta,
+    };
+  });
+  for (const rc of reverse) {
+    if (rc.after < 0) {
+      undoFeedbackEl.className = "feedback error";
+      undoFeedbackEl.textContent = `Peruutus ei onnistu: ${getLocation(rc.location).name} / ${getProduct(rc.product).name} menisi negatiiviseksi (${rc.after}).`;
+      return;
+    }
+  }
+  for (const rc of reverse) {
+    state.balances[rc.location][rc.product] = rc.after;
+  }
+  tx.undone = true;
+  pushTransaction({
+    type: "peruutus",
+    undoes: tx.id,
+    changes: reverse,
+  }, user);
+  saveState();
+  renderBalances();
+  renderHistory();
+  undoModal.style.display = "none";
+  pendingUndoTxId = null;
+});
+
+undoModal.addEventListener("click", (e) => {
+  if (e.target === undoModal) {
+    undoModal.style.display = "none";
+    pendingUndoTxId = null;
+  }
+});
+
 renderBalances();
 renderForm();
 renderHistory();
